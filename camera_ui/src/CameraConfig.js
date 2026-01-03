@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './CameraConfig.css';
+import { API_ENDPOINTS } from './constants';
 
 function CameraConfig({ onConfigSuccess }) {
   const [cameraIp, setCameraIp] = useState('');
@@ -15,7 +16,7 @@ function CameraConfig({ onConfigSuccess }) {
     setLoading(true);
 
     try {
-      const response = await fetch('http://192.168.0.86:5000/camera_config', {
+      const response = await fetch(API_ENDPOINTS.CAMERA_CONFIG, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

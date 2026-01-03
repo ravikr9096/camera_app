@@ -1,5 +1,6 @@
 import React from 'react';
 import './CricketGround.css';
+import { API_ENDPOINTS } from './constants';
 
 function CricketGround({ cameraConfig }) {
   const areas = [
@@ -17,7 +18,7 @@ function CricketGround({ cameraConfig }) {
   const handleAreaClick = async (areaId) => {
     try {
       const response = await fetch(
-        `http://192.168.0.86:5000/goto_preset?preset_id=${areaId}`
+        `${API_ENDPOINTS.GOTO_PRESET}?preset_id=${areaId}`
       );
       
       if (!response.ok) {
@@ -38,7 +39,7 @@ function CricketGround({ cameraConfig }) {
 
   // Backend should proxy RTSP to web-compatible format
   // The backend endpoint should handle the RTSP stream conversion
-  const videoFeedUrl = 'http://192.168.0.86:5000/video_feed';
+  const videoFeedUrl = API_ENDPOINTS.VIDEO_FEED;
 
   return (
     <div className="cricket-ground-container">
