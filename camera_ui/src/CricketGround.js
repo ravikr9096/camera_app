@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './CricketGround.css';
 import { API_ENDPOINTS } from './constants';
 
@@ -31,6 +31,37 @@ function CricketGround({ cameraConfig }) {
       console.error('Error calling API:', error);
     }
   };
+
+  // Keyboard event handler
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      // Map keys q,w,e,a,s,d,z,x,c to areas 1-9
+      // Layout: q w e (areas 1-3)
+      //         a s d (areas 4-6)
+      //         z x c (areas 7-9)
+      const keyMap = {
+        'q': 1, 'w': 2, 'e': 3,
+        'a': 4, 's': 5, 'd': 6,
+        'z': 7, 'x': 8, 'c': 9
+      };
+      
+      const key = event.key.toLowerCase();
+      const areaId = keyMap[key];
+      
+      if (areaId) {
+        event.preventDefault();
+        handleAreaClick(areaId);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyPress);
+
+    // Cleanup event listener on unmount
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, []); // Empty dependency array means this runs once on mount
 
   // Construct RTSP URL (for reference, backend should handle this)
   const rtspUrl = cameraConfig 

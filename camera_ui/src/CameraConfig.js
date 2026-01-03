@@ -3,9 +3,9 @@ import './CameraConfig.css';
 import { API_ENDPOINTS } from './constants';
 
 function CameraConfig({ onConfigSuccess }) {
-  const [cameraIp, setCameraIp] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [cameraIp, setCameraIp] = useState('192.168.0.111');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('Admin@1508');
   const [port, setPort] = useState('554');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
