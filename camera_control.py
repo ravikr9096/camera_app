@@ -3,6 +3,7 @@ from requests.auth import HTTPDigestAuth
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import cv2
+import time
 
 app = Flask(__name__)
 # Enable CORS for all routes
@@ -97,6 +98,247 @@ def api_goto_preset_query():
         }), 400
     
     result = goto_preset(preset_id)
+    
+    if result["success"]:
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 400
+
+def zoom_continuous(zoom_speed):
+    """
+    Sends a continuous zoom command to the Hikvision camera.
+    
+    Args:
+        zoom_speed (int): Zoom speed (-1 to 1, positive for zoom in, negative for zoom out)
+    
+    Returns:
+        Dictionary with success status and message
+    """
+    url = f"http://{camera_config['camera_ip']}/ISAPI/PTZCtrl/channels/{camera_config['channel']}/continuous"
+    
+    # XML body for continuous PTZ control
+    xml_body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<PTZData>
+    <pan>0</pan>
+    <tilt>0</tilt>
+    <zoom>{zoom_speed}</zoom>
+</PTZData>"""
+    
+    try:
+        response = requests.put(
+            url,
+            data=xml_body,
+            auth=HTTPDigestAuth(camera_config['username'], camera_config['password']),
+            headers={'Content-Type': 'application/xml'},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "message": f"Zoom command sent successfully (speed: {zoom_speed})",
+                "status_code": response.status_code
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Error: Received status code {response.status_code}",
+                "status_code": response.status_code,
+                "error_details": response.text
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Connection failed: {str(e)}",
+            "error": str(e)
+        }
+
+def zoom_stop():
+    """
+    Stops all PTZ movement including zoom.
+    
+    Returns:
+        Dictionary with success status and message
+    """
+    url = f"http://{camera_config['camera_ip']}/ISAPI/PTZCtrl/channels/{camera_config['channel']}/continuous"
+    
+    # XML body to stop all movement (all zeros)
+    xml_body = """<?xml version="1.0" encoding="UTF-8"?>
+<PTZData>
+    <pan>0</pan>
+    <tilt>0</tilt>
+    <zoom>0</zoom>
+</PTZData>"""
+    
+    try:
+        response = requests.put(
+            url,
+            data=xml_body,
+            auth=HTTPDigestAuth(camera_config['username'], camera_config['password']),
+            headers={'Content-Type': 'application/xml'},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "message": "Zoom stopped",
+                "status_code": response.status_code
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Error: Received status code {response.status_code}",
+                "status_code": response.status_code,
+                "error_details": response.text
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Connection failed: {str(e)}",
+            "error": str(e)
+        }
+
+def zoom_in_multiple(times=5, duration=0.5):
+    """
+    Performs zoom in operation multiple times.
+    
+    Args:
+        times (int): Number of times to zoom in (default: 5)
+        duration (float): Duration in seconds for each zoom operation (default: 0.5)
+    
+    Returns:
+        Dictionary with success status and message
+    """
+    results = []
+    all_success = True
+    
+    for i in range(times):
+        # Start zoom in (speed = 1)
+        result = zoom_continuous(1)
+        if not result["success"]:
+            all_success = False
+            results.append(result)
+            break
+        
+        # Wait for the zoom duration
+        time.sleep(duration)
+        
+        # Stop zoom
+        stop_result = zoom_stop()
+        if not stop_result["success"]:
+            all_success = False
+            results.append(stop_result)
+            break
+        
+        results.append(result)
+        # Small delay between operations
+        time.sleep(0.1)
+    
+    if all_success:
+        return {
+            "success": True,
+            "message": f"Successfully zoomed in {times} times",
+            "operations": times,
+            "results": results
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"Zoom in operation failed after {len(results)} successful operations",
+            "operations": len(results),
+            "results": results
+        }
+
+def zoom_out_multiple(times=5, duration=0.5):
+    """
+    Performs zoom out operation multiple times.
+    
+    Args:
+        times (int): Number of times to zoom out (default: 5)
+        duration (float): Duration in seconds for each zoom operation (default: 0.5)
+    
+    Returns:
+        Dictionary with success status and message
+    """
+    results = []
+    all_success = True
+    
+    for i in range(times):
+        # Start zoom out (speed = -1)
+        result = zoom_continuous(-1)
+        if not result["success"]:
+            all_success = False
+            results.append(result)
+            break
+        
+        # Wait for the zoom duration
+        time.sleep(duration)
+        
+        # Stop zoom
+        stop_result = zoom_stop()
+        if not stop_result["success"]:
+            all_success = False
+            results.append(stop_result)
+            break
+        
+        results.append(result)
+        # Small delay between operations
+        time.sleep(0.1)
+    
+    if all_success:
+        return {
+            "success": True,
+            "message": f"Successfully zoomed out {times} times",
+            "operations": times,
+            "results": results
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"Zoom out operation failed after {len(results)} successful operations",
+            "operations": len(results),
+            "results": results
+        }
+
+@app.route('/zoom_in', methods=['GET', 'POST'])
+def api_zoom_in():
+    """
+    API endpoint to zoom in 5 times.
+    
+    Query Parameters (optional):
+        times (int): Number of times to zoom in (default: 5)
+        duration (float): Duration in seconds for each zoom operation (default: 0.5)
+    
+    Returns:
+        JSON response with success status and message
+    """
+    times = request.args.get('times', type=int, default=5)
+    duration = request.args.get('duration', type=float, default=0.5)
+    
+    result = zoom_in_multiple(times, duration)
+    
+    if result["success"]:
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 400
+
+@app.route('/zoom_out', methods=['GET', 'POST'])
+def api_zoom_out():
+    """
+    API endpoint to zoom out 5 times.
+    
+    Query Parameters (optional):
+        times (int): Number of times to zoom out (default: 5)
+        duration (float): Duration in seconds for each zoom operation (default: 0.5)
+    
+    Returns:
+        JSON response with success status and message
+    """
+    times = request.args.get('times', type=int, default=5)
+    duration = request.args.get('duration', type=float, default=0.5)
+    
+    result = zoom_out_multiple(times, duration)
     
     if result["success"]:
         return jsonify(result), 200
@@ -212,6 +454,8 @@ if __name__ == "__main__":
     print("API Endpoints:")
     print("  GET/POST /goto_preset/<preset_id> - Move to preset by path parameter")
     print("  GET/POST /goto_preset?preset_id=<id> - Move to preset by query parameter")
+    print("  GET/POST /zoom_in?times=5&duration=0.5 - Zoom in multiple times (default: 5 times)")
+    print("  GET/POST /zoom_out?times=5&duration=0.5 - Zoom out multiple times (default: 5 times)")
     print("  POST /camera_config - Set/Get camera configuration (IP, username, password, channel, rtsp_port)")
     print("  GET /video_feed - Stream video feed from camera (MJPEG)")
     print("  GET /health - Health check")

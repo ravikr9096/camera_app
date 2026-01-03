@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import './CricketGround.css';
 import { API_ENDPOINTS } from './constants';
 
@@ -15,7 +15,7 @@ function CricketGround({ cameraConfig }) {
     { id: 9, name: '', position: 'bottom-right' },
   ];
 
-  const handleAreaClick = async (areaId) => {
+  const handleAreaClick = useCallback(async (areaId) => {
     try {
       const response = await fetch(
         `${API_ENDPOINTS.GOTO_PRESET}?preset_id=${areaId}`
@@ -30,11 +30,59 @@ function CricketGround({ cameraConfig }) {
     } catch (error) {
       console.error('Error calling API:', error);
     }
-  };
+  }, []);
+
+  const handleZoomIn = useCallback(async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.ZOOM_IN, {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Zoom in response:', data);
+    } catch (error) {
+      console.error('Error calling zoom in API:', error);
+    }
+  }, []);
+
+  const handleZoomOut = useCallback(async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.ZOOM_OUT, {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Zoom out response:', data);
+    } catch (error) {
+      console.error('Error calling zoom out API:', error);
+    }
+  }, []);
 
   // Keyboard event handler
   useEffect(() => {
     const handleKeyPress = (event) => {
+      const key = event.key.toLowerCase();
+      
+      // Zoom controls
+      if (key === 'o') {
+        event.preventDefault();
+        handleZoomIn();
+        return;
+      }
+      if (key === 'p') {
+        event.preventDefault();
+        handleZoomOut();
+        return;
+      }
+      
       // Map keys q,w,e,a,s,d,z,x,c to areas 1-9
       // Layout: q w e (areas 1-3)
       //         a s d (areas 4-6)
@@ -45,7 +93,6 @@ function CricketGround({ cameraConfig }) {
         'z': 7, 'x': 8, 'c': 9
       };
       
-      const key = event.key.toLowerCase();
       const areaId = keyMap[key];
       
       if (areaId) {
@@ -61,7 +108,7 @@ function CricketGround({ cameraConfig }) {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, [handleZoomIn, handleZoomOut, handleAreaClick]);
 
   // Construct RTSP URL (for reference, backend should handle this)
   const rtspUrl = cameraConfig 
@@ -84,6 +131,23 @@ function CricketGround({ cameraConfig }) {
             className="live-feed"
           />
         </div>
+      </div>
+
+      <div className="zoom-controls-container">
+        <button 
+          className="zoom-button zoom-in-button" 
+          onClick={handleZoomIn}
+          title="Zoom In (Press 'O')"
+        >
+          Zoom In (O)
+        </button>
+        <button 
+          className="zoom-button zoom-out-button" 
+          onClick={handleZoomOut}
+          title="Zoom Out (Press 'P')"
+        >
+          Zoom Out (P)
+        </button>
       </div>
 
       <div className="cricket-ground">
